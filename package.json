@@ -1,12 +1,13 @@
 {
-  "name": "Atlas CLI - GitHub Actions workflow",
+  "name": "atlas-cli-github-action",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.mjs",
+  "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "test": "mocha",
-    "ci": "start-test start :8080 test"
+    "unit-test": "mocha",
+    "test": "start-test start :8080 unit-test"
   },
   "keywords": [],
   "author": "",

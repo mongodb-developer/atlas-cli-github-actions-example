@@ -1,20 +1,59 @@
-name: Set up a MongoDB Atlas cluster and run integration tests!
+name: Integration Tests
 
 on: [push]
+
+env:
+  PROJECT_NAME: IntegrationTestsProject
+  CLUSTER_NAME: Tests
+  USERNAME: tests_user
+  PROVIDER: GCP
+  REGION: WESTERN_EUROPE
+  TIER: M0
+
 jobs:
-  tests:
-    runs-on: self-hosted
+  setup:
+    runs-on: macos-latest
+    outputs:
+      atlas_project_id: ${{ steps.cluster-setup.outputs.atlas_project_id }}
     steps:
-      - name: Check-out the repository
-        uses: actions/checkout@v3
-
-      - name: Install npm packages
-        uses: bahmutov/npm-install@v1
-
-      - name: Set up a MongoDB Atlas M0 cluster and run tests
+      - uses: actions/checkout@v3
+      - name: Set up a MongoDB Atlas project and cluster
+        id: cluster-setup
         env:
+          PASSWORD: ${{ secrets.CLUSTER_PASSWORD }}
           MONGODB_ATLAS_ORG_ID: ${{ secrets.MONGODB_ATLAS_ORG_ID }}
           MONGODB_ATLAS_PUBLIC_API_KEY: ${{ secrets.MONGODB_ATLAS_PUBLIC_API_KEY }}
           MONGODB_ATLAS_PRIVATE_API_KEY: ${{ secrets.MONGODB_ATLAS_PRIVATE_API_KEY }}
-        run: |
-          .github/actions-scripts/set-up-cluster-and-run-tests.sh
+        run: .github/actions-scripts/cluster_setup.sh
+      - uses: actions/upload-artifact@master
+        with:
+          name: env
+          path: .env
+
+  tests:
+    runs-on: macos-latest
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@master
+        with:
+          name: env
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - run: npm ci
+      - run: npm test
+
+  teardown:
+    runs-on: macos-latest
+    needs: [setup, tests]
+    if: always()
+    steps:
+      - uses: actions/checkout@v3
+      - name: Tear down the Atlas project and cluster
+        env:
+          MONGODB_ATLAS_PROJECT_ID: ${{ needs.setup.outputs.atlas_project_id }}
+          MONGODB_ATLAS_ORG_ID: ${{ secrets.MONGODB_ATLAS_ORG_ID }}
+          MONGODB_ATLAS_PUBLIC_API_KEY: ${{ secrets.MONGODB_ATLAS_PUBLIC_API_KEY }}
+          MONGODB_ATLAS_PRIVATE_API_KEY: ${{ secrets.MONGODB_ATLAS_PRIVATE_API_KEY }}
+        run: .github/actions-scripts/cluster_teardown.sh
