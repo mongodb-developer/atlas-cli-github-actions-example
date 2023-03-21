@@ -11,17 +11,16 @@ export MONGODB_ATLAS_PROJECT_ID=$(atlas projects create \
 echo "atlas_project_id=${MONGODB_ATLAS_PROJECT_ID}" >> "$GITHUB_OUTPUT"
 
 echo "Creating the cluster..."
-atlas setup \
-    --force \
-    --tier $TIER \
-    --clusterName $CLUSTER_NAME \
+atlas cluster create $CLUSTER_NAME \
     --provider $PROVIDER \
     --region $REGION \
-    --username $USERNAME \
-    --password $PASSWORD \
-    --skipSampleData \
-    --skipMongosh \
-    --accessListIp "0.0.0.0/0"
+    --tier $TIER
+
+# Create an IP access list entry allowing access from anywhere
+atlas accessList create 0.0.0.0/0
+
+# Create a database user for the project
+echo "${PASSWORD}" | atlas dbuser create readWriteAnyDatabase --username $USERNAME
 
 # Wait until the cluster's available
 atlas cluster watch $CLUSTER_NAME
